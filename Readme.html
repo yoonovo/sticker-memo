@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="user-scalable=no, initial-scale=1, width=device-width, height=device-height, minimal-ui">
+<meta name="apple-mobile-web-app-capable" content="no">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<title>스티커메모</title>
+
+<style type="text/css"></style>
+
+</head>
+<body>
+	<h3>기본규칙</h3>
+	<ul>
+		<li>바탕화면(쪽지가 아닌 회색부분)에 마우스 우클릭시 마우스 위치가 top, left값을 가지는 새로운 쪽지를 생성합니다. (기본 크기 div.textarea : width:200px, height:100px;)</li>
+		<li>쪽지의 헤더 부분 드래그시 쪽지를 바탕화면 내에서 이동됩니다.</li>
+		<li>.드래그 드랍 또는 내용 수정시에 해당하는 쪽지는 겹쳐진 쪽지 중 최상단으로 나옵니다.</li>
+		<li>쪽지 우 하단 드래그시 크기가 변경됩니다.</li>
+		<li>모든 쪽지 내용, 위치, 크기, 쌓이는 순서는 localStorage에 저장되며, 리로드시 모든 쪽지가 그대로 나옵니다.</li>
+	</ul>
+</body>
+</html>

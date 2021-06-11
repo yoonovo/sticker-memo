@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Sticker Memo</title>
+    <style>
+        html, body, div, span,
+        h1, h2, h3, h4, h5, h6, p,
+        a, em, img, strong,
+        dl, dt, dd, ol, ul, li{
+            margin: 0;
+            padding: 0;
+            border: 0;
+            font-size: 12px;
+        }
+        html,body{
+            height: 100%;
+        }
+        ol, ul {
+            list-style: none;
+        }
+        blockquote, q {
+            quotes: none;
+        }
+        blockquote:before, blockquote:after,
+        q:before, q:after {
+            content: '';
+            content: none;
+        }
+        .blind{
+            overflow: hidden;
+            position: absolute;
+            clip: rect( 0 0 0 0);
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+        }
+        .wrap{
+            height: 100%;
+            background-color: #f2f2f2;
+        }
+        .wrap .header{
+            position: relative;
+            height: 15px;
+            background-color: #f9f978;
+            border-bottom: 1px solid #eee;
+            cursor:move;
+        }
+        .memo{
+            position: absolute;
+            background-color: lightyellow;
+            border: 1px solid #eee;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.4);
+        }
+        .content{
+            position: relative;
+            overflow-x:hidden;
+            overflow-y:auto;
+            padding: 10px;
+        }
+        .content .textarea{
+            outline: none;
+            white-space: break-spaces;
+        }
+        .btn_close{
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 15px;
+            height: 15px;
+            appearance: button;
+            -webkit-appearance: button;
+            -moz-appearance: button;
+            border: 0;
+            background-color: #fff;
+            cursor: pointer;
+            outline:0;
+            text-align: center;
+        }
+        .btn_close:after{
+            position: absolute;
+            top: -1px;
+            right: 0;
+            width: 15px;
+            content:"\d7";
+            font-size: 15px;
+            line-height: 15px;
+            color: #666;
+            text-align: center;
+        }
+        .btn_size{
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 15px;
+            height: 15px;
+            appearance: button;
+            -webkit-appearance: button;
+            -moz-appearance: button;
+            border: 0;
+            background: transparent;
+            cursor: nwse-resize;
+            outline:0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="momoBoard" class="wrap" onmousemove="contentsMove(event)" onmouseup="contentsEvtEnd()"></div>
+    <script>
+        const momoBoard = document.getElementById('momoBoard');
+        const colorPicker = ['lightyellow', '#e4f7ba', '#edc6f1', '#d4f4fa'];
+        let memoMoveEvt = false; // 메모 위치 이동 구분값
+        let resizeEvt = false; // 메모 사이즈 변경 구분값
+        let offsetW = 0; // 메모 사이즈 변경시 width 초기값
+        let offsetH = 0; // 메모 사이즈 변경시 height 초기값
+        let createMemoIdx = 0; // 생성되는 메모에 부여되는 index
+        let selectMemoIdx = 0; // 선택된 메모 index
+        let zIndex = 0; // 최상단으로 위치할 수 있게 z-index 사용
+
+        let localStorage = {
+            data: {},
+            set storage(value){ // 한 개의 요소만 변경할때
+                if(!value) return;
+                this.data[selectMemoIdx][value[0]] = value[1];
+                window.localStorage.setItem('data', JSON.stringify(this.data));
+            },
+            get storage(){ // Local Storage에서 불러온 데이터 Parsing 
+                return window.localStorage.getItem('data') ? JSON.parse(window.localStorage.getItem('data')) : {};
+            }
+        };
+
+        // 페이지 로드시 Local Storage에 있는 데이터로 메모 세팅
+        if(localStorage.storage){
+            localStorage.data = localStorage.storage;
+            const keys = Object.keys(localStorage.storage);
+            
+            keys.forEach(el => {
+                const { id, width, height, localX, localY, content } = localStorage.storage[el];
+                momoBoard.innerHTML += `<div id="momoBox${id}" class="memo" style="margin-top:${localY}px; margin-left:${localX}px; background-color: ${colorPicker[id%4]};" onmousedown="selectMemo(${id})">
+                    <div id="memoHeader${id}" class="header" onmousedown="memoDragStart(${id})">
+                        <h1 class="blind">메모장</h1>
+                        <button class="btn_close" onclick="memoDelete(${id})"><span class="blind">닫기</span></button>
+                    </div>
+                    <div class="content">
+                        <div id="momoCentents${id}" class="textarea" contenteditable="true" style="width:${width}px; height:${height}px;" onkeyup="memoInput(${id})">${content}</div>
+                        <button class="btn_size" onmousedown="resizeStart(${id})"><span class="blind">메모장 크기 조절</span></button>
+                    </div>
+                </div>`;
+            })
+            createMemoIdx = keys.length > 0 ? keys.length-1 : 0;
+        }
+
+        // 마우스 우클릭시 메모 생성
+        document.getElementById('momoBoard').addEventListener('contextmenu', event => {
+            if(event.target.className !== 'wrap') return;
+            momoBoard.innerHTML += `<div id="momoBox${createMemoIdx}" class="memo" style="margin-top:${event.clientY}px; margin-left:${event.clientX}px; background-color: ${colorPicker[createMemoIdx%4]};" onmousedown="selectMemo(${createMemoIdx})">
+                <div id="memoHeader${createMemoIdx}" class="header" onmousedown="memoDragStart(${createMemoIdx})">
+                    <h1 class="blind">메모장</h1>
+                    <button class="btn_close" onclick="memoDelete(${createMemoIdx})"><span class="blind">닫기</span></button>
+                </div>
+                <div class="content">
+                    <div id="momoCentents${createMemoIdx}" class="textarea" contenteditable="true" style="width:200px; height:100px;" onkeyup="memoInput(${createMemoIdx})"></div>
+                    <button class="btn_size" onmousedown="resizeStart(${createMemoIdx})"><span class="blind">메모장 크기 조절</span></button>
+                </div>
+            </div>`;
+
+            // 생성된 데이터 저장
+            localStorage.data[createMemoIdx] = {
+                id: createMemoIdx,
+                content: '',
+                localY: event.clientY,
+                localX: event.clientX,
+                width: 200,
+                height: 100
+            };
+            window.localStorage.setItem('data', JSON.stringify(localStorage.data));
+
+            createMemoIdx++;
+
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        
+        // 메모 선택시 최상단으로 위치
+        function selectMemo(idx){
+            selectMemoIdx = idx;
+            document.getElementById(`momoBox${idx}`).style.zIndex = zIndex++;
+        }
+
+        // 메모 위치 이동 이벤트 시작
+        function memoDragStart(idx){
+            memoMoveEvt = true;
+            selectMemoIdx = idx;
+        }
+
+        // 메모 사이즈 조정 이벤트 시작
+        function resizeStart(idx){
+            resizeEvt = true;
+            selectMemoIdx = idx;
+            offsetW = document.getElementById(`momoCentents${idx}`).offsetWidth;
+            offsetH = document.getElementById(`momoCentents${idx}`).offsetHeight;
+        }
+        
+        // [공통] 드래그로 위치값 갱신
+        function contentsMove(event){
+            const momoBox = document.getElementById(`momoBox${selectMemoIdx}`);
+            const momoCentents = document.getElementById(`momoCentents${selectMemoIdx}`);
+
+            if(memoMoveEvt){ // 메모 위치 이동 ( 현재 margin값에서 움직인만큼 더하기)
+                const marginY = Number(momoBox.style.marginTop.replace('px', ''));
+                const marginX = Number(momoBox.style.marginLeft.replace('px', ''));
+                momoBox.style.marginTop = (marginY + event.movementY)+'px';
+                momoBox.style.marginLeft = (marginX + event.movementX)+'px';
+
+                localStorage.storage = ['localY', (marginY + event.movementY)];
+                localStorage.storage = ['localX', (marginX + event.movementX)];
+            }
+            if(resizeEvt){ // 메모 사이즈 조정
+                offsetW += event.movementX;
+                offsetH += event.movementY;
+                momoCentents.style.width = offsetW+'px';
+                momoCentents.style.height = offsetH+'px';
+
+                localStorage.storage = ['width', offsetW];
+                localStorage.storage = ['height', offsetH];
+            }
+        }
+
+        // [공통] 컨텐츠 부분에서 마우스를 떼면 이벤트 종료
+        function contentsEvtEnd(){
+            memoMoveEvt = false;
+            resizeEvt = false;
+        }
+        
+        // 메모 삭제
+        function memoDelete(idx){
+            document.getElementById(`momoBox${selectMemoIdx}`).style.display = 'none';
+            delete localStorage.data[idx];
+            window.localStorage.setItem('data', JSON.stringify(localStorage.data));
+        }
+
+        // 메모 입력
+        function memoInput(idx){
+            localStorage.storage = ['content', document.getElementById(`momoCentents${idx}`).innerText];
+        }
+    </script>
+</body>
+</html>
